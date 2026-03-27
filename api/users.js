@@ -10,7 +10,9 @@ router.post("/", async (req, res) => {
   const { username } = req.body;
 
   if (!username) {
-    res.status(400).send("Username is missing, but is required");
+    return res.status(400).send("Username is missing, but is required");
+  } else if (username.trim().length === 0) {
+    return res.status(422).send("Username cannot empty");
   }
 
   try {
@@ -20,13 +22,18 @@ router.post("/", async (req, res) => {
       username,
     ]);
 
-    res.json({
+    return res.json({
       _id: result.lastID,
       username: username,
     });
   } catch (error) {
-    res.status(500).send("Database error.\n" + error.message);
-    throw error;
+    if (
+      error.code === "SQLITE_CONSTRAINT" &&
+      error.message.includes("UNIQUE")
+    ) {
+      return res.status(422).send("Username already exists");
+    }
+    return res.status(500).send("Database error. " + error.message);
   }
 });
 
@@ -36,16 +43,23 @@ router.get("/", async (req, res) => {
 
     const result = await db.all("SELECT * FROM users");
 
-    res.json(result);
+    return res.json(result);
   } catch (error) {
-    res.status(500).send("Database error.\n" + error.message);
-    throw error;
+    return res.status(500).send("Database error. " + error.message);
   }
 });
 
 router.post("/:_id/exercises", async (req, res) => {
   const { _id } = req.params;
   let { description, duration, date } = req.body;
+
+  if (!description) {
+    return res.status(400).send("Description is missing, but is required");
+  }
+
+  if (!duration) {
+    return res.status(400).send("Duration is missing, but is required");
+  }
 
   const dateObj = date ? new Date(date) : new Date();
   const dateString = dateObj.toDateString();
@@ -58,7 +72,7 @@ router.post("/:_id/exercises", async (req, res) => {
     ]);
 
     if (!user) {
-      res.status(404).send("User not found");
+      return res.status(404).send("User with the given ID not found");
     }
 
     await db.run(
@@ -67,7 +81,7 @@ router.post("/:_id/exercises", async (req, res) => {
       [_id, description, parseInt(duration), dateString],
     );
 
-    res.json({
+    return res.json({
       username: user.username,
       description: description,
       duration: parseInt(duration),
@@ -75,8 +89,7 @@ router.post("/:_id/exercises", async (req, res) => {
       _id: _id,
     });
   } catch (error) {
-    res.status(500).send("Database error.\n" + error.message);
-    throw error;
+    return res.status(500).send("Database error. " + error.message);
   }
 });
 
@@ -90,7 +103,7 @@ router.get("/:_id/logs", async (req, res) => {
     const user = await db.get(`SELECT username FROM users WHERE _id=?`, [_id]);
 
     if (!user) {
-      res.status(404).send("User not found");
+      return res.status(404).send("User not found");
     }
 
     let exercises = await db.all(
@@ -118,15 +131,14 @@ router.get("/:_id/logs", async (req, res) => {
       exercises = exercises.slice(0, parseInt(limit));
     }
 
-    res.json({
+    return res.json({
       username: user.username,
       count: exercises.length,
       _id,
       log: exercises,
     });
   } catch (error) {
-    res.status(500).send("Database error.\n" + error.message);
-    throw error;
+    return res.status(500).send("Database error. " + error.message);
   }
 });
 
