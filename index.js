@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
-import api from "./api/api.js";
+import api from "./controller/api.js";
 import { initDb } from "./db/db.js";
 
 const app = express();
