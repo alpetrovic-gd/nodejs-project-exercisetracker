@@ -155,18 +155,23 @@ router.get("/:_id/logs", async (req, res) => {
       return res.status(404).send("User not found");
     }
 
+    let countQuery = `SELECT COUNT(*) as total FROM exercises WHERE user_id=?`;
     let query = `SELECT description, duration, date FROM exercises WHERE user_id=?`;
     let params = [_id];
 
     if (from) {
+      countQuery += ` AND date >= ?`;
       query += ` AND date >= ?`;
       params.push(from);
     }
 
     if (to) {
+      countQuery += ` AND date <= ?`;
       query += ` AND date <= ?`;
       params.push(to);
     }
+
+    const countResult = await db.get(countQuery, params);
 
     query += ` ORDER BY date`;
 
@@ -179,7 +184,7 @@ router.get("/:_id/logs", async (req, res) => {
 
     return res.json({
       username: user.username,
-      count: exercises.length,
+      count: countResult.total,
       _id,
       log: exercises,
     });
